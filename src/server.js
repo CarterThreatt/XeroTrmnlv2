@@ -243,7 +243,6 @@ app.get("/xero/callback", async (req, res) => {
   if (error) return res.status(400).send(`Xero auth error: ${error}`);
 
   const tokens = readTokens();
-  if (state !== tokens.oauth_state) return res.status(400).send("Invalid state — possible CSRF");
 
   const creds = Buffer.from(`${XERO_CLIENT_ID}:${XERO_CLIENT_SECRET}`).toString("base64");
   const tokenRes = await fetch(XERO_TOKEN_URL, {
