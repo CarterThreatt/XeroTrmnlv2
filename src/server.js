@@ -48,14 +48,41 @@ const SCOPES = [
 // Simple file-based store.  Swap for a DB/KV store in production.
 function readTokens() {
   try {
-    return JSON.parse(fs.readFileSync(TOKEN_FILE, "utf8"));
+    const t = process.env.XERO_TOKENS;
+    return t ? JSON.parse(t) : {};
   } catch {
     return {};
   }
 }
 
-function writeTokens(tokens) {
-  fs.writeFileSync(TOKEN_FILE, JSON.stringify(tokens, null, 2));
+async function writeTokens(tokens) {
+  // Persist to Railway via their API
+  const projectId = process.env.RAILWAY_PROJECT_ID;
+  const serviceId = process.env.RAILWAY_SERVICE_ID;
+  const environmentId = process.env.RAILWAY_ENVIRONMENT_ID;
+  const apiToken = process.env.RAILWAY_API_TOKEN;
+
+  if (apiToken && projectId && serviceId && environmentId) {
+    const mutation = `
+      mutation {
+        variableUpsert(input: {
+          projectId: "${projectId}"
+          serviceId: "${serviceId}"
+          environmentId: "${environmentId}"
+          name: "XERO_TOKENS"
+          value: ${JSON.stringify(JSON.stringify(tokens))}
+        })
+      }
+    `;
+    await fetch("https://backboard.railway.app/graphql/v2", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiToken}`,
+      },
+      body: JSON.stringify({ query: mutation }),
+    });
+  }
 }
 
 // ── OAuth Helpers ─────────────────────────────────────────────────────────────
