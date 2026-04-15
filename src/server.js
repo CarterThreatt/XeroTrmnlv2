@@ -39,7 +39,7 @@ const SCOPES = [
   "openid",
   "profile",
   "email",
-  "accounting.transactions.read",
+  "accounting.invoices.read",
   "accounting.settings.read",
   "offline_access",
 ].join(" ");
