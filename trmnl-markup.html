@@ -1,0 +1,130 @@
+<!--
+  ╔══════════════════════════════════════════════════════════╗
+  ║   TRMNL × XERO  —  Unpaid Invoices                      ║
+  ║   Paste this into your TRMNL Private Plugin Markup tab   ║
+  ║                                                          ║
+  ║   Polling strategy:  GET /invoices                       ║
+  ║   Webhook strategy:  POST to your TRMNL webhook URL      ║
+  ╚══════════════════════════════════════════════════════════╝
+
+  Variable reference (from your /invoices JSON response):
+    ##{{ grand_invoice_count }}       — total unpaid across all orgs
+    ##{{ grand_overdue_count }}       — overdue count
+    ##{{ grand_total_owed }}          — total $ owed (float)
+    ##{{ org_count }}                 — number of orgs
+    ##{{ orgs }}                      — array of org objects:
+        ##{{ org.name }}
+        ##{{ org.count }}
+        ##{{ org.overdue_count }}
+        ##{{ org.total_owed }}
+        ##{{ org.oldest_due }}        — array of up to 3 invoices:
+            ##{{ inv.contact }}
+            ##{{ inv.reference }}
+            ##{{ inv.amount_due }}
+            ##{{ inv.due_date }}
+    ##{{ generated_at }}              — ISO timestamp
+-->
+
+<div class="layout layout--col gap--8">
+
+  <!-- ── Header bar ─────────────────────────────────────── -->
+  <div class="flex--row flex--justify-between flex--align-center">
+    <span class="label label--medium" style="letter-spacing:0.04em; text-transform:uppercase;">
+      Xero · Unpaid Invoices
+    </span>
+    <span class="label label--small" style="opacity:0.55;">
+      ##{{ generated_at | date: "%b %-d, %I:%M %p" }}
+    </span>
+  </div>
+
+  <!-- ── Grand total (single-org collapses naturally) ───── -->
+  <div class="flex--row flex--justify-between flex--align-end border--bottom pb--4">
+    <div>
+      <div class="value value--xlarge">
+        ##{{ grand_invoice_count }}
+      </div>
+      <div class="label label--small" style="opacity:0.6;">
+        unpaid invoice{% if grand_invoice_count != 1 %}s{% endif %}
+      </div>
+    </div>
+
+    <div style="text-align:right;">
+      <div class="value value--large">
+        $##{{ grand_total_owed | round: 2 | number_with_delimiter }}
+      </div>
+      <div class="label label--small" style="opacity:0.6;">total outstanding</div>
+    </div>
+
+    {% if grand_overdue_count > 0 %}
+    <div style="text-align:right;">
+      <div class="value value--medium" style="text-decoration:underline; text-underline-offset:3px;">
+        ##{{ grand_overdue_count }}
+      </div>
+      <div class="label label--small" style="opacity:0.6;">overdue</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- ── Per-org breakdown (shown when > 1 org) ─────────── -->
+  {% if org_count > 1 %}
+  <div class="flex--col gap--6">
+    {% for org in orgs %}
+    <div class="flex--row flex--justify-between flex--align-center border--bottom pb--3">
+      <div class="flex--col gap--1">
+        <span class="label label--medium" style="font-weight:600;">
+          ##{{ org.name | truncate: 28 }}
+        </span>
+        {% if org.overdue_count > 0 %}
+        <span class="label label--small" style="opacity:0.55;">
+          ##{{ org.overdue_count }} overdue
+        </span>
+        {% endif %}
+      </div>
+      <div style="text-align:right;">
+        <div class="value value--medium">##{{ org.count }}</div>
+        <div class="label label--small" style="opacity:0.6;">
+          $##{{ org.total_owed | round: 2 | number_with_delimiter }}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- ── Oldest / most urgent invoices (single org) ──────── -->
+  {% if org_count == 1 %}
+  {% assign primary = orgs[0] %}
+  {% if primary.oldest_due.size > 0 %}
+  <div class="flex--col gap--4">
+    <span class="label label--small" style="opacity:0.5; text-transform:uppercase; letter-spacing:0.05em;">
+      Oldest outstanding
+    </span>
+    {% for inv in primary.oldest_due %}
+    <div class="flex--row flex--justify-between flex--align-center">
+      <div class="flex--col gap--0">
+        <span class="label label--medium" style="font-weight:500;">
+          ##{{ inv.contact | truncate: 24 }}
+        </span>
+        <span class="label label--small" style="opacity:0.5;">
+          ##{{ inv.reference }} · Due ##{{ inv.due_date | date: "%b %-d" }}
+        </span>
+      </div>
+      <span class="value value--small">${{ inv.amount_due | round: 0 | number_with_delimiter }}</span>
+    </div>
+    {% unless forloop.last %}<div class="border--bottom"></div>{% endunless %}
+    {% endfor %}
+  </div>
+  {% endif %}
+  {% endif %}
+
+</div>
+
+<!-- ── Title bar ──────────────────────────────────────────── -->
+<div class="title_bar">
+  <img class="image" src="https://usetrmnl.com/images/plugins/xero--rendered.png"
+       onerror="this.style.display='none'" />
+  <span class="title">Xero</span>
+  <span class="instance">
+    {% if org_count == 1 %}##{{ orgs[0].name }}{% else %}##{{ org_count }} orgs{% endif %}
+  </span>
+</div>
